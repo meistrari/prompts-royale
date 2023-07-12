@@ -1,0 +1,8 @@
+{
+    "extends": "@antfu",
+    "rules": {
+        "@typescript-eslint/indent": ["error", 4],
+        "vue/html-indent": ["error", 4],
+        "@typescript-eslint/no-namespace": "off"
+    }
+}
