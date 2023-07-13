@@ -13,7 +13,7 @@ const { cost } = useAI()
             <ClientOnly>
                 <UPopover ml-5>
                     <UButton
-                        variant="ghost" icon="i-tabler-key" :class="[
+                        icon="i-tabler-key text-5" :class="[
                             !apiKey && 'animate-bounce',
                         ]"
                     >
@@ -44,11 +44,11 @@ const { cost } = useAI()
                 </template>
             </ClientOnly>
         </div>
-        <UButton icon="i-tabler-settings" ms-auto @click="navigateTo('/settings')">
+        <UButton icon="i-tabler-settings text-5" ms-auto @click="navigateTo('/settings')">
             Settings
         </UButton>
         <ClientOnly>
-            <UBadge size="lg" color="emerald" ms-2>
+            <UBadge size="lg" color="primary" ms-2>
                 <UIcon name="i-tabler-currency-dollar" />
                 {{ (cost || 0).toFixed(3) }}
             </UBadge>

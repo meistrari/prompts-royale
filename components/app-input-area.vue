@@ -13,7 +13,7 @@ const {
 } = useAutoPrompter()
 const toast = useNotification()
 
-const numberOfBattles = ref(40)
+const numberOfBattles = ref(60)
 async function runOrStopBattles() {
     if (battlesToRun.value > 0) {
         stopRunningBattles()
@@ -83,14 +83,14 @@ function onClickAddTestCase() {
         <UFormGroup
             mt--2
             label="Description"
-            description="Describe the task you want the AI to perform through the prompt."
+            description="his is where you state the objective of the final prompt. Your objective is to..."
             text-4.5
         >
             <ClientOnly>
                 <UTextarea
                     v-model="description"
                     variant="outline"
-                    placeholder="e.g. Creates headlines from the user prompt" autoresize size="xl" mb-4
+                    placeholder="e.g. Create headlines from the user prompt" autoresize size="xl" mb-4
                 />
                 <template #placeholder>
                     <USkeleton w-full h-18 my-2 />
@@ -107,6 +107,25 @@ function onClickAddTestCase() {
                 Add test cases to test the generated prompts. The prompts will be rated based on how well it performs on these test cases.
             </div>
 
+            <UButton icon="i-tabler-plus text-4.5 text-emerald" color="white" mt-2 @click="onClickAddTestCase">
+                Add test case
+            </UButton>
+            <UTooltip
+                text="Creates generated test cases and adds to the currents one."
+                :ui="{
+                    width: 'max-w-xl',
+                }"
+                ml-2
+            >
+                <UButton
+                    icon="i-tabler-sparkles text-4.5 text-indigo" color="white" mt-2
+                    :loading="isGeneratingTestCases"
+                    @click="onClickGenerateTestCases"
+                >
+                    Generate additional test cases
+                </UButton>
+            </UTooltip>
+
             <ClientOnly>
                 <div v-if="testCases.length" flex="~ col" gap-3 mt-2>
                     <TestCaseInput
@@ -121,19 +140,6 @@ function onClickAddTestCase() {
                     </div>
                 </template>
             </ClientOnly>
-
-            <UButtonGroup size="lg">
-                <UButton icon="i-tabler-plus text-4.5 text-emerald" color="white" mt-2 @click="onClickAddTestCase">
-                    Add test case
-                </UButton>
-                <UButton
-                    icon="i-tabler-sparkles text-4.5 text-indigo" color="white" mt-2
-                    :loading="isGeneratingTestCases"
-                    @click="onClickGenerateTestCases"
-                >
-                    Generate test cases
-                </UButton>
-            </UButtonGroup>
         </div>
 
         <UModal v-model="isGenerateTestCasesModalOpen">

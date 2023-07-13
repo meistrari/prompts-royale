@@ -3,6 +3,7 @@ import randomNormal from 'random-normal'
 import type { Battle, Candidate, RatingIteration, TestCase } from '@/utils/types'
 
 export function useAutoPrompter() {
+    const log = createLogger('AutoPrompter')
     const candidates = useSyncedState<Candidate[]>('candidates', [])
     const description = useSyncedState<string>('description', '')
     const promptAmount = useSyncedState<number>('promptAmount', 10)
@@ -38,7 +39,26 @@ export function useAutoPrompter() {
             const response = await ai.cursive.query({
                 model: candidateGenerationModel.value,
                 systemMessage: currentPrompt,
-                prompt: `Here are some test cases:\`${testCases.value.join('\n')}\`\n\nHere is the description of the use-case: \`${description.value.trim()}\`\n\nRespond with your prompt, and nothing else. Be creative.`,
+                prompt: trim`
+                    Here are some test cases scenarios and their expected outputs:
+                    """
+                    ${testCases.value.map((testCase, i) => trim`
+                        Test case #${String(i + 1)}:
+                        Scenario: ${testCase.prompt}
+                        Expected output: ${testCase.expectedOutput}
+                    `).join('\n')}
+                    """
+                    
+                    Here is what the user want the final prompt  to accomplish:
+                    """
+                    ${description.value.trim()}
+                    """
+                    
+                    Respond with your prompt, and nothing else. Be creative.
+                    NEVER CHEAT BY INCLUDING SPECIFICS ABOUT THE TEST CASES IN YOUR PROMPT. 
+                    ANY PROMPTS WITH THOSE SPECIFIC EXAMPLES WILL BE DISQUALIFIED.
+                    IF YOU USE EXAMPLES, ALWAYS USE ONES THAT ARE VERY DIFFERENT FROM THE TEST CASES.
+                `,
                 temperature: i === 0 ? 0 : candidateGenerationTemperature.value,
             })
 
@@ -98,6 +118,7 @@ export function useAutoPrompter() {
     }
 
     async function getScore(testCase: TestCase, posA: string, posB: string) {
+        log('Getting score for', testCase.id)
         if (!testCase.expectedOutput.trim()) {
             const ai = useAI()
             const { rankingPrompt } = useSettings()
@@ -139,7 +160,7 @@ export function useAutoPrompter() {
         }
     }
 
-    async function getGeneration(prompt: string, testCase: TestCase) {
+    async function getGeneration(prompt: string, testCase: TestCase, options?: { temperature?: number; model?: string }) {
         const ai = useAI()
         const { completionGenerationModel, completionGenerationTemperature } = useSettings()
         const result = await ai.cursive.query({
@@ -148,8 +169,13 @@ export function useAutoPrompter() {
             prompt: testCase.prompt,
             temperature: completionGenerationTemperature.value,
             abortSignal: stopBattleController.value?.signal,
+            ...options,
         })
-        return result.choices![0].message!.content!
+
+        if (result.choices)
+            return result.choices![0].message!.content!
+
+        return ''
     }
 
     async function getEmbedding(content: string) {
@@ -193,7 +219,7 @@ export function useAutoPrompter() {
             const winner = Object.keys(samples).find((key: string) => samples[key] === winnerValue)!
             distribution[winner]++
         }
-        console.log('Monte Carlo simulation took', Date.now() - start, 'ms')
+        log('Monte Carlo simulation took', Date.now() - start, 'ms')
 
         // Randomly select two candidates
         function randomlySelectFromDistribution(excluded = '') {
@@ -257,7 +283,9 @@ export function useAutoPrompter() {
             return newBattle.rounds[roundIndex]
         }))
 
+        log('Settling rounds')
         await Promise.all(settleRounds)
+        log('Rounds settled')
 
         const aScore = newBattle.rounds.filter(round => round.result === 'a').length
         const bScore = newBattle.rounds.filter(round => round.result === 'b').length
@@ -273,17 +301,16 @@ export function useAutoPrompter() {
         const { simultaneousBattles } = useSettings()
         battlesToRun.value = amount
         for (let i = 0; i < amount; i++) {
-            console.log(`Battle ${i}`)
+            log(`Battle ${i}`)
             const amountOfBattles = Math.min(Number(simultaneousBattles.value), battlesToRun.value)
             const start = Date.now()
             await Promise.all(Array.from({ length: amountOfBattles }).map(() => runBattle()))
-            console.log('Battle took', Date.now() - start, 'ms')
+            log('Battle took', Date.now() - start, 'ms')
             battlesToRun.value -= amountOfBattles
 
             if (stopBattle.value && stopBattleController.value) {
-                stopBattleController.value.abort()
-                stopBattleController.value = new AbortController()
                 stopBattle.value = false
+                log('Stopping battle')
                 return
             }
         }

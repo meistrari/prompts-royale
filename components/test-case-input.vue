@@ -23,6 +23,10 @@ async function onClickGenerateExpectedOutput() {
             Always output only one expected output.
         `,
         testCases.value[index.value],
+        {
+            model: 'gpt-4',
+            temperature: 1.2,
+        },
     )
 
     // Remove trailing and leading quotes
@@ -37,9 +41,9 @@ async function onClickGenerateExpectedOutput() {
         p-2 gap-2
         bg="dark-1/2"
     >
-        <div grow flex="~ col" gap-1.5>
+        <div grow flex="~ col" gap-2.5>
             <div font-bold uppercase text-3.25>
-                Prompt
+                Scenario
             </div>
             <UTextarea
                 v-model="testCases[index].prompt" autoresize :rows="1" size="lg" placeholder="e.g. A new fitness app called StayFit" w-full
@@ -48,8 +52,24 @@ async function onClickGenerateExpectedOutput() {
                 }"
                 z-5 relative
             />
-            <div font-bold uppercase text-3.25>
-                Expected Output
+            <div flex items-center h-5>
+                <UTooltip>
+                    <div font-bold uppercase text-3.25 flex items-center>
+                        <span>Expected Output</span>
+                        <UIcon name="i-tabler-info-circle" ml-1 text-gray-5 text-4 />
+                    </div>
+                </UTooltip>
+                <UButton
+                    v-if="!testCases[index].expectedOutput.trim()"
+                    color="white"
+                    icon="i-tabler-sparkles text-indigo text-4.5"
+                    size="xs"
+                    :loading="isGeneratingExpectedOutput"
+                    ms-auto
+                    @click="onClickGenerateExpectedOutput"
+                >
+                    Generate expected output
+                </UButton>
             </div>
             <UTextarea
                 v-model="testCases[index].expectedOutput" autoresize :rows="1" size="lg" placeholder="e.g. A new fitness app called StayFit" w-full
@@ -60,16 +80,6 @@ async function onClickGenerateExpectedOutput() {
             />
         </div>
         <div flex mt-2 gap-2 justify-end>
-            <UButton
-                v-if="!testCases[index].expectedOutput.trim()"
-                color="white"
-                icon="i-tabler-sparkles text-indigo text-4.5"
-                size="xs"
-                :loading="isGeneratingExpectedOutput"
-                @click="onClickGenerateExpectedOutput"
-            >
-                Generate expected output
-            </UButton>
             <UButton
                 icon="i-tabler-trash text-5" color="gray" square size="lg" relative
                 z-0

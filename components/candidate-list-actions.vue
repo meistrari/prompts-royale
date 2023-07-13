@@ -19,7 +19,7 @@ function onClearCandidates() {
 <template>
     <ClientOnly>
         <div>
-            <UButtonGroup size="md">
+            <div flex gap-2>
                 <UButton icon="i-tabler-plus text-green" color="white" @click="createEmptyCandidate">
                     Add new
                 </UButton>
@@ -31,7 +31,7 @@ function onClearCandidates() {
                 <UButton v-if="candidates.length" icon="i-tabler-trash text-red" color="white" @click="isConfirmClearModalOpen = true">
                     Clear
                 </UButton>
-            </UButtonGroup>
+            </div>
 
             <UModal
                 v-model="isConfirmClearModalOpen"

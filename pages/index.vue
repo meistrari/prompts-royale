@@ -5,7 +5,7 @@ const { battles } = useAutoPrompter()
 <template>
     <div>
         <div
-            grid grid-cols-2 h-60dvh gap-4 p-4
+            grid grid-cols-2 h-60dvh gap-4 p-4 pt-0
             :class="[
                 battles.length ? 'h-60dvh' : 'h-90dvh',
             ]"
@@ -14,7 +14,7 @@ const { battles } = useAutoPrompter()
             <AppCandidateList />
         </div>
 
-        <div px-4 py-0 grid grid-cols-12 gap-4>
+        <div px-4 py-0 grid grid-cols-12 gap-4 mb-12>
             <div col-span-8>
                 <ClientOnly>
                     <EloChart />

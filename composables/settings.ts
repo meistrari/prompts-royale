@@ -1,4 +1,5 @@
 import { useDefaultPrompts } from './default-prompts'
+import { useSyncedState } from '@/utils/synced-state'
 
 export function useSettings() {
     const { defaultGenerateCandidatesPrompts, defaultRankingPrompt, defaultCreateTestCasePrompt } = useDefaultPrompts()

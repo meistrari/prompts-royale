@@ -10,6 +10,19 @@ useHead({
         },
     ],
     title: 'Prompts Royale • Generate and rank prompts for GPT',
+    meta: [
+        { property: 'og:image', content: '/og-image.png' },
+    ],
+})
+
+useSeoMeta({
+    ogDescription: 'Automatically generate and rank prompts for GPT',
+    ogImage: '/og-image.png',
+    ogUrl: 'https://promptsroyale.com',
+    ogTitle: 'Prompts Royale • Generate and rank prompts for GPT',
+    ogType: 'website',
+    twitterCard: 'summary_large_image',
+    twitterSite: '@henrycunh',
 })
 
 runMigrations()
