@@ -12,7 +12,8 @@ https://github.com/meistrari/prompts-royale/assets/8951736/efd6e6f6-c470-473a-bc
 - Automatic prompt candidates generation (or user input)
 - Automatic test cases generation (or user input)
 - Usage of Monte Carlo sampler + ELO system, for the lowest amount of inferences necessary to rank candidates
-- Ability to adjust settings of each part of the process to your needs 
+- Ability to adjust settings of each part of the process to your needs
+- Ability to add expected output to improve prompt customization
 
 ## Usage
 You can use it at [promptsroyale.com](https://promptsroyale.com/), or you can clone the repository and run it locally.
