@@ -83,7 +83,7 @@ function onClickAddTestCase() {
         <UFormGroup
             mt--2
             label="Description"
-            description="his is where you state the objective of the final prompt. Your objective is to..."
+            description="This is where you state the objective of the final prompt. Your objective is to..."
             text-4.5
         >
             <ClientOnly>
