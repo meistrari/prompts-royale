@@ -101,3 +101,7 @@ $$\sigma_{B}' = \sigma_{B} \cdot LR$$
 $$expected\_score(A,B) = \frac{1}{1 + 10^{\frac{\mu_{B} - \mu_{A}}{400}}}$$
 
 The reason why we update the $\sigma$ of each prompt is that we have more certainty on the distribution after each match, thus it should have a smaller standard deviation.
+
+## Credits
+
+We were heavily inspired by https://github.com/mshumer/gpt-prompt-engineer, thanks for your work!
