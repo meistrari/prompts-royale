@@ -12,18 +12,18 @@ const promptIndex = computed(() =>
 
 function getScoreColor(score: number) {
     if (score > 80)
-        return 'bg-emerald-1 ring-emerald-6 text-emerald-7'
+        return 'bg-emerald-1/50 ring-emerald-4/50 text-emerald-6'
     if (score >= 50)
-        return 'bg-orange-1 ring-orange-6 text-orange-7'
-    return 'bg-red-1 ring-red-6 text-red-7'
+        return 'bg-orange-1/50 ring-orange-4/50 text-orange-6'
+    return 'bg-red-1/50 ring-red-4/50 text-red-6'
 }
 
 function getRingColor(score: number) {
     if (score > 80)
-        return 'ring-emerald-3'
+        return 'ring-emerald-3 bg-emerald-50/75'
     if (score >= 50)
-        return 'ring-orange-3'
-    return 'ring-red-3'
+        return 'ring-orange-3 bg-orange-50/75'
+    return 'ring-red-4/50 bg-red-50/75'
 }
 
 const textareaEl = ref<HTMLTextAreaElement | null>(null)
@@ -47,7 +47,7 @@ function onDeleteCandidate() {
         :class="getRingColor(score)"
     >
         <!-- Header -->
-        <div flex cursor-pointer hover:bg-gray-50 px-2 py-1 rounded items-center>
+        <div flex cursor-pointer px-2 py-1 rounded items-center class="hover:bg-dark-1/5">
             <div font-bold>
                 Prompt #{{ promptId + 1 }}
             </div>
@@ -65,7 +65,7 @@ function onDeleteCandidate() {
                     </div>
                 </div>
             </UTooltip>
-            <UButton square color="black" icon="i-tabler-trash" ms-2 @click="isDeleteCandidateModalOpen = true" />
+            <UButton square color="gray" icon="i-tabler-trash text-5" ms-2 @click="isDeleteCandidateModalOpen = true" />
         </div>
 
         <!-- Content -->

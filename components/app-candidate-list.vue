@@ -30,66 +30,35 @@ const candidateItemList = computed(() => {
 </script>
 
 <template>
-    <ClientOnly>
-        <template #placeholder>
-            <USkeleton w-full h-80dvh />
-        </template>
-        <UCard
-            h-80dvh
-            :ui="{
-                base: 'overflow-y-auto',
-            }"
-        >
-            <template #header>
-                <div font-bold text-5>
-                    Prompt candidates
-                </div>
-            </template>
-
-            <div>
-                <CandidateListActions w-full mb-4 />
+    <UCard
+        h-full
+        :ui="{
+            base: 'overflow-y-auto',
+        }"
+    >
+        <template #header>
+            <div font-bold text-5>
+                Prompt candidates
             </div>
+        </template>
 
+        <div mb-4>
+            <CandidateListActions w-full />
+        </div>
+        <ClientOnly>
             <div>
                 <CandidateListItem
                     v-for="item in candidateItemList"
-                    :key="item.id + item.content"
+                    :key="item.id + item.rating"
                     :prompt-id="item.id"
                     :score="item.score"
                     mb-2 last:mb-0
                 />
             </div>
-            <!-- <UAccordion
-                :items="candidateItemList"
-                multiple
-            >
-                <template #default="{ item, open }">
-                    <UButton color="white" icon="i-tabler-3d-cube-sphere" mb-2 last:mb-0>
-                        <span truncate>{{ item.label }}</span>
-                        <template #trailing>
-                            <UBadge ms-auto :color="item.isBest ? 'emerald' : 'primary'">
-                                <UIcon name="i-tabler-trophy" mr-1 />
-                                <span font-bold>
-                                    {{ item.score.toFixed(0) }}
-                                </span>
-                            </UBadge>
 
-                            <UIcon
-                                name="i-heroicons-chevron-right-20-solid"
-                                class="w-5 h-5 transform transition-transform duration-200"
-                                :class="[open && 'rotate-90']"
-                            />
-                        </template>
-                    </UButton>
-                </template>
-
-                <template #item="{ item }">
-                    <UTextarea
-                        v-model="candidates[item.id].content"
-                        autoresize
-                    />
-                </template> -->
-            <!-- </UAccordion> -->
-        </UCard>
-    </ClientOnly>
+            <template #placeholder>
+                <USkeleton v-for="i in 4" :key="i" w-full h-60 mb-4 />
+            </template>
+        </ClientOnly>
+    </UCard>
 </template>

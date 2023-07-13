@@ -6,7 +6,7 @@ const { cost } = useAI()
 <template>
     <div
         flex items-center
-        py-4
+        p-4
     >
         <Logo />
         <div>

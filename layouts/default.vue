@@ -2,7 +2,7 @@
 </script>
 
 <template>
-    <div max-w-1560px mx-auto px-4>
+    <div max-w-1550px mx-auto>
         <AppHeader />
         <NuxtPage />
     </div>

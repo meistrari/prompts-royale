@@ -1,25 +1,36 @@
+<script lang="ts" setup>
+const { battles } = useAutoPrompter()
+</script>
+
 <template>
-    <div max-w-1560px mx-auto p-2 py-5>
-        <div grid grid-cols-12 gap-2>
-            <div col-span-4>
-                <AppInputArea />
-            </div>
-
-            <div col-span-4>
-                <AppCandidateList />
-            </div>
-
-            <div col-span-4 flex="~ col" gap-3>
-                <AppBattleList />
-            </div>
+    <div>
+        <div
+            grid grid-cols-2 h-60dvh gap-4 p-4
+            :class="[
+                battles.length ? 'h-60dvh' : 'h-90dvh',
+            ]"
+        >
+            <AppInputArea />
+            <AppCandidateList />
         </div>
-        <div mt-4>
-            <ClientOnly>
-                <EloChart />
-                <template #placeholder>
-                    <USkeleton w-full h-40dvh />
-                </template>
-            </ClientOnly>
+
+        <div px-4 py-0 grid grid-cols-12 gap-4>
+            <div col-span-8>
+                <ClientOnly>
+                    <EloChart />
+                    <template #placeholder>
+                        <USkeleton w-full h-40dvh />
+                    </template>
+                </ClientOnly>
+            </div>
+            <div col-span-4>
+                <ClientOnly>
+                    <AppBattleList />
+                    <template #placeholder>
+                        <USkeleton w-full h-40dvh />
+                    </template>
+                </ClientOnly>
+            </div>
         </div>
     </div>
 </template>

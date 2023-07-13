@@ -81,7 +81,6 @@ export function useDefaultPrompts() {
 
         Most importantly, output NOTHING but the test case. Do not include anything else in your message.
         You only output one test case per message, without quotes.
-
     `
 
     return {

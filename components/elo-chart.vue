@@ -19,7 +19,7 @@ use([
     LegendComponent,
 ])
 
-const { ratingHistory, candidates, takeSnapshotOfRatings } = useAutoPrompter()
+const { ratingHistory, candidates, takeSnapshotOfRatings, battles } = useAutoPrompter()
 
 watchEffect(() => {
     if (candidates.value.length > 0 && ratingHistory.value.length === 0)
@@ -76,12 +76,14 @@ onMounted(() => {
 
 <template>
     <UCard
-        v-if="ratingHistory.length"
+        v-if="battles.length"
         :ui="{
             body: {
                 padding: 'p-0',
             },
+            base: 'overflow-visible',
         }"
+        z-index-555 h-40dvh
     >
         <template #header>
             <div font-bold text-5>
@@ -97,6 +99,7 @@ onMounted(() => {
 <style scoped>
 .chart {
     width: 100%;
-    height: 37dvh;
+    height: 33dvh;
+    z-index: 555;
 }
 </style>

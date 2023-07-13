@@ -1,21 +1,14 @@
 import pLimit from 'p-limit'
 import randomNormal from 'random-normal'
+import type { Battle, Candidate, RatingIteration, TestCase } from '@/utils/types'
 
 export function useAutoPrompter() {
-    const candidates = useSyncedState<{
-        content: string
-        rating: number
-        sd: number
-        id: number
-    }[]>('candidates', [])
+    const candidates = useSyncedState<Candidate[]>('candidates', [])
     const description = useSyncedState<string>('description', '')
     const promptAmount = useSyncedState<number>('promptAmount', 10)
-    const testCases = useSyncedState<string[]>('testCases', [])
+    const testCases = useSyncedState<TestCase[]>('v2.testCases', [])
     const battles = useSyncedState<Battle[]>('battles', [])
-    const ratingHistory = useSyncedState<{
-        iteration: number
-        ratings: { rating: number; sd: number; promptId: number }[]
-    }[]>('ratingHistory', [])
+    const ratingHistory = useSyncedState<RatingIteration[]>('ratingHistory', [])
     const apiKey = useSyncedState<string>('apiKey', '')
     const battlesToRun = useState<number>('battlesToRun', () => 0)
     const stopBattleController = useState<AbortController | null>('stopBattleSignal', () => null)
@@ -94,46 +87,75 @@ export function useAutoPrompter() {
             return
         }
 
-        const newTestCases = response.choices!.map(choice => choice.message!.content!)
+        const newTestCases = response.choices!.map(choice => ({
+            prompt: choice.message!.content!,
+            expectedOutput: '',
+            id: randomId(),
+        }))
+
         testCases.value = [...testCases.value, ...newTestCases]
         isGeneratingTestCases.value = false
     }
 
-    async function getScore(testCase: string, posA: string, posB: string) {
-        const ai = useAI()
-        const { rankingPrompt } = useSettings()
-        const result = await ai.cursive.query({
-            systemMessage: rankingPrompt.value,
-            prompt: trim`
-                Task: ${description.value.trim()}
-                Prompt: ${testCase}
-                Generation A: ${posA}
-                Generation B: ${posB}
-            `,
-            logitBias: {
-                32: 100,
-                33: 100,
-            },
-            maxTokens: 1,
-            temperature: 0,
-            abortSignal: stopBattleController.value?.signal,
-            model: 'gpt-4',
-        })
-        const winner = result.choices?.[0].message?.content
-        return winner === 'A' ? 1 : winner === 'B' ? 0 : 0.5
+    async function getScore(testCase: TestCase, posA: string, posB: string) {
+        if (!testCase.expectedOutput.trim()) {
+            const ai = useAI()
+            const { rankingPrompt } = useSettings()
+            const result = await ai.cursive.query({
+                systemMessage: rankingPrompt.value,
+                prompt: trim`
+                    Task: ${description.value.trim()}
+                    Prompt: ${testCase.prompt}
+                    Generation A: ${posA}
+                    Generation B: ${posB}
+                `,
+                logitBias: {
+                    32: 100,
+                    33: 100,
+                },
+                maxTokens: 1,
+                temperature: 0,
+                abortSignal: stopBattleController.value?.signal,
+                model: 'gpt-4',
+            })
+            const winner = result.choices?.[0].message?.content
+            return winner === 'A' ? 1 : winner === 'B' ? 0 : 0.5
+        }
+        else {
+            const [a, b, expected] = await Promise.all([
+                getEmbedding(posA),
+                getEmbedding(posB),
+                getEmbedding(testCase.expectedOutput),
+            ])
+
+            const scoreA = cosineSimilarity(a, expected)
+            const scoreB = cosineSimilarity(b, expected)
+
+            // Draw if both scores are below 0.7
+            if (scoreA < 0.7 && scoreB < 0.7)
+                return 0.5
+            else
+                return scoreA > scoreB ? 1 : 0
+        }
     }
 
-    async function getGeneration(prompt: string, testCase: string) {
+    async function getGeneration(prompt: string, testCase: TestCase) {
         const ai = useAI()
         const { completionGenerationModel, completionGenerationTemperature } = useSettings()
         const result = await ai.cursive.query({
             model: completionGenerationModel.value,
             systemMessage: prompt,
-            prompt: testCase,
+            prompt: testCase.prompt,
             temperature: completionGenerationTemperature.value,
             abortSignal: stopBattleController.value?.signal,
         })
         return result.choices![0].message!.content!
+    }
+
+    async function getEmbedding(content: string) {
+        const ai = useAI()
+        const result = await ai.cursive.embed(content)
+        return result
     }
 
     function takeSnapshotOfRatings() {
@@ -198,6 +220,7 @@ export function useAutoPrompter() {
         const roundLimit = pLimit(5)
         const settleRounds = newBattle.rounds.map((round, roundIndex) => roundLimit(async () => {
             const testCase = round.testCase
+            let score: 1 | 0 | 0.5 = 0.5
             const aIndex = candidates.value.findIndex(candidate => candidate.id === newBattle.a)!
             const bIndex = candidates.value.findIndex(candidate => candidate.id === newBattle.b)!
             const [a, b] = [candidates.value[aIndex], candidates.value[bIndex]]
@@ -205,7 +228,16 @@ export function useAutoPrompter() {
                 getGeneration(a.content, testCase),
                 getGeneration(b.content, testCase),
             ])
-            const score = await getScore(testCase, posA, posB)
+
+            score = await getScore(testCase, posA, posB)
+
+            if (score === 0.5) {
+                newBattle.rounds[roundIndex].result = 'draw'
+                newBattle.rounds[roundIndex].settledAt = new Date()
+                newBattle.rounds[roundIndex].generation = { a: posA, b: posB }
+                return newBattle.rounds[roundIndex]
+            }
+
             const [newRatingA, newRatingB] = updateElo(
                 candidates.value[aIndex].rating,
                 candidates.value[bIndex].rating,
@@ -326,6 +358,7 @@ export function useAutoPrompter() {
         battlesToRun,
         isGeneratingPromptCandidates,
         generatePromptCandidates,
+        getGeneration,
         expectedScore,
         resetCandidatesRatingAndSD,
         runBattle,
@@ -347,17 +380,13 @@ function expectedScore(ratingA: number, ratingB: number) {
     return 1 / (1 + 10 ** ((ratingA - ratingB) / 400))
 }
 
-interface Battle {
-    a: number
-    b: number
-    rounds: {
-        testCase: string
-        generation: {
-            a: string
-            b: string
-        }
-        result: 'a' | 'b' | 'draw' | null
-        settledAt?: Date
-    }[]
-    winner?: 'a' | 'b' | 'draw' | null
+function cosineSimilarity(vecA: number[], vecB: number[]): number {
+    const dotProduct = vecA.reduce((sum, a, i) => sum + a * vecB[i], 0) // dot product
+    const magnitudeA = Math.sqrt(vecA.reduce((sum, a) => sum + a * a, 0)) // magnitude of A
+    const magnitudeB = Math.sqrt(vecB.reduce((sum, b) => sum + b * b, 0)) // magnitude of B
+
+    if (magnitudeA && magnitudeB)
+        return dotProduct / (magnitudeA * magnitudeB)
+    else
+        return 0
 }

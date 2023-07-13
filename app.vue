@@ -9,8 +9,10 @@ useHead({
             href: 'https://api.iconify.design/tabler:swords.svg',
         },
     ],
-    title: 'Prompts Royale • Compare GPT prompts',
+    title: 'Prompts Royale • Generate and rank prompts for GPT',
 })
+
+runMigrations()
 </script>
 
 <template>
@@ -29,6 +31,7 @@ body {
     -webkit-font-smoothing: antialiased;
     font-smooth: antialiased;
     margin: 0;
+    background: #f5f3f7;
 }
 
 * {

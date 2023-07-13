@@ -71,7 +71,7 @@ const battleItemList = computed(() => battles.value
                             >
                                 <div
                                     v-for="(round, i) in battle.rounds"
-                                    :key="round.testCase"
+                                    :key="round.testCase.id"
                                     p-2 rounded mb-2 last:mb-0
                                     u-ring-1 ring-gray-2
                                 >
@@ -80,9 +80,18 @@ const battleItemList = computed(() => battles.value
                                             Round {{ i + 1 }}
                                         </div>
                                     </div>
-                                    <div p-2 bg="gray-1" rounded>
+                                    <div p-2 bg="gray-1" rounded flex="~ col" gap-1>
+                                        <div uppercase font-bold text-3>
+                                            Prompt
+                                        </div>
                                         <div>
-                                            {{ round.testCase }}
+                                            {{ round.testCase.prompt }}
+                                        </div>
+                                        <div uppercase font-bold text-3>
+                                            Expected Output
+                                        </div>
+                                        <div>
+                                            {{ round.testCase.expectedOutput }}
                                         </div>
                                         <div text-xs uppercase text-right>
                                             Test case
