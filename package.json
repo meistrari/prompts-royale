@@ -1,6 +1,7 @@
 {
-  "name": "nuxt-app",
+  "name": "prompts-royale",
   "private": true,
+  "version": "0.1.0",
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
