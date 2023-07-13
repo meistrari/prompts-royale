@@ -1,6 +1,7 @@
 import pLimit from 'p-limit'
 import randomNormal from 'random-normal'
 import type { Battle, Candidate, RatingIteration, TestCase } from '@/utils/types'
+import { useSyncedState } from '@/utils/synced-state'
 
 export function useAutoPrompter() {
     const log = createLogger('AutoPrompter')

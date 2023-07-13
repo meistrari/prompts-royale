@@ -9,7 +9,7 @@ useHead({
             href: 'https://api.iconify.design/tabler:swords.svg',
         },
     ],
-    title: 'Prompts Royale • Generate and rank prompts for GPT',
+    title: 'Prompts Royale',
     meta: [
         { property: 'og:image', content: '/og-image.png' },
     ],
@@ -19,10 +19,13 @@ useSeoMeta({
     ogDescription: 'Automatically generate and rank prompts for GPT',
     ogImage: '/og-image.png',
     ogUrl: 'https://promptsroyale.com',
-    ogTitle: 'Prompts Royale • Generate and rank prompts for GPT',
+    ogTitle: 'Prompts Royale',
     ogType: 'website',
-    twitterCard: 'summary_large_image',
+    twitterCard: 'app',
     twitterSite: '@henrycunh',
+    twitterDescription: 'Automatically generate and rank prompts for GPT',
+    twitterImage: '/og-image.png',
+    twitterTitle: 'Prompts Royale',
 })
 
 runMigrations()

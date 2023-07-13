@@ -44,18 +44,23 @@ const { cost } = useAI()
                 </template>
             </ClientOnly>
         </div>
-        <UButton icon="i-tabler-settings text-5" ms-auto @click="navigateTo('/settings')">
+        <UButton icon="i-tabler-settings text-5" ms-auto color="white" @click="navigateTo('/settings')">
             Settings
         </UButton>
         <ClientOnly>
-            <UBadge size="lg" color="primary" ms-2>
-                <UIcon name="i-tabler-currency-dollar" />
+            <div class="bg-emerald-2/30 ring-emerald-5/50 text-emerald-7" font-bold ms-2 py-1 px-2 flex items-center u-ring-1 rounded>
+                <UIcon name="i-tabler-currency-dollar text-4.5" />
                 {{ (cost || 0).toFixed(3) }}
-            </UBadge>
+            </div>
 
             <template #placeholder>
                 <USkeleton w-20 h-8 ml-4 />
             </template>
         </ClientOnly>
+        <a href="https://github.com/meistrari/prompts-royale" ms-2>
+            <UButton icon="i-tabler-brand-github text-5" color="black">
+                Github
+            </UButton>
+        </a>
     </div>
 </template>
