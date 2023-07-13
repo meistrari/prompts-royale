@@ -1,6 +1,10 @@
 # Prompts Royale
 
-PromptsRoyale creates prompts based on a description you provide and ranks them based on the quality and consistency of responses. The approach uses an ELO system on top of a Monte Carlo sampler, designed to significantly reduce the number of inferences you would require to find out which of the generated prompts is the best as compared to a naive approach. 
+Prompt engineering is an extremely iterative process. Even when we manage to settle down on a prompt, it's so difficult to test it against test cases and other possible prompts to make sure we're giving the best instructions to the model.
+
+**Prompts Royale** is an application that allows you to really easily create many prompt candidates, write your own ones, and make them battle until a clear winner emerges. It makes the process of iterating on a prompt feel much more easy and reliable.
+
+You give a description of what you want to accomplish, give it a few scenarios and expected outputs, and then just sit back and watch them battle for #1.
 
 <div align=center>
   
@@ -8,12 +12,12 @@ https://github.com/meistrari/prompts-royale/assets/8951736/efd6e6f6-c470-473a-bc
 
 </div>
 
-## Key features:
-- Automatic prompt candidates generation (or user input)
-- Automatic test cases generation (or user input)
-- Usage of Monte Carlo sampler + ELO system, for the lowest amount of inferences necessary to rank candidates
-- Ability to adjust settings of each part of the process to your needs
-- Ability to add expected output to improve prompt customization
+## What it can do
+- **Automatic prompt generation:** Allows for the creation of prompt candidates from the user's description and test case scenarios. The user can also input their own.
+- **Automatic test cases generation:** Enables automatically creating test cases from the description to get the juices flowing!
+- **Monte Carlo Matchmaking + ELO Rating:** It uses the Monte Carlo method for matchmaking to ensure you get as much information with the least amount of battles, and ELO Rating to properly rank candidates based on their wins and who they win against
+- **Everything is customizable:** The settings page allow you to tinker with every single parameter of the application
+- **Local & Secure**: Everything is stored locally and requests are made from your browser to the LLMs API. 
 
 ## Usage
 You can use it at [promptsroyale.com](https://promptsroyale.com/), or you can clone the repository and run it locally.
