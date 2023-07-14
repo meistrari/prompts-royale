@@ -105,7 +105,7 @@ $$\sigma_{B}' = \sigma_{B} \cdot LR$$
     - If two prompts with the same $\mu$ battle and one prompt wins all of the rounds it will gain $\dfrac{K}{2}$ points and the other will lose $\dfrac{K}{2}$ points.
 
 - $score$ is $1$ if $A$ wins and $0$ if $B$ wins,
-- $expected\\\_score(A,B)$ is the expected chance of $A$ winning of $B$ given their normal distributions. This is calculated by the following formula:
+- $expected\\\_score(A,B)$ is the expected chance of $A$ winning versus $B$ given their normal distributions. This is calculated by the following formula:
 $$expected\\\_score(A,B) = \frac{1}{1 + 10^{\frac{\mu_{B} - \mu_{A}}{400}}}$$
 
 The reason why we update the $\sigma$ of each prompt is that we have more certainty on the distribution after each match, thus it should have a smaller standard deviation.
