@@ -24,7 +24,7 @@ You can use it at [promptsroyale.com](https://promptsroyale.com/), or you can cl
 
 Clone the repository:
 ```bash
-git clone ssh://github.com/meistrari/prompts-royale.git
+git clone git@github.com:meistrari/prompts-royale.git
 ```
 
 Install the dependencies:
