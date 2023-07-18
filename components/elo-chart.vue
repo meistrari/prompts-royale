@@ -21,11 +21,6 @@ use([
 
 const { ratingHistory, candidates, takeSnapshotOfRatings, battles } = useAutoPrompter()
 
-watchEffect(() => {
-    if (candidates.value.length > 0 && ratingHistory.value.length === 0)
-        takeSnapshotOfRatings()
-})
-
 const option = computed(() => {
     const maxRating = Math.max(...ratingHistory.value.map(i => Math.max(...i.ratings.map(r => r.rating))))
     const maxRatingRounded = Math.ceil(maxRating / 100) * 100

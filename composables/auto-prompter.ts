@@ -4,6 +4,7 @@ import { resguard } from 'resguard'
 import { timeout } from '@/utils/timeout'
 import type { Battle, Candidate, RatingIteration, TestCase } from '@/utils/types'
 import { useSyncedState } from '@/utils/synced-state'
+import { matrix } from 'echarts'
 
 export function useAutoPrompter() {
     const log = createLogger('AutoPrompter')
@@ -198,11 +199,11 @@ export function useAutoPrompter() {
         })
     }
 
-    async function runBattle() {
-        const { sampleAmount, learningRate } = useSettings()
+    function monteCarloSampler(activeCandidates: Candidate[]){
+        const { sampleAmount } = useSettings()
 
         // Initialize distribution
-        const distribution = candidates.value.reduce((acc, candidate) => {
+        const distribution = activeCandidates.reduce((acc, candidate) => {
             acc[String(candidate.id)] = 0
             return acc
         }, {} as Record<string, number>)
@@ -214,7 +215,7 @@ export function useAutoPrompter() {
             const samples: Record<string, number> = {}
 
             for (const key in distribution) {
-                const candidate = candidates.value.find(candidate => candidate.id === Number(key))!
+                const candidate = activeCandidates.find(candidate => candidate.id === Number(key))!
                 samples[key] = randomNormal({ mean: candidate.rating, dev: candidate.sd })
             }
 
@@ -239,9 +240,18 @@ export function useAutoPrompter() {
         const a = randomlySelectFromDistribution()
         const b = randomlySelectFromDistribution(a)
 
+        const adversaryA = activeCandidates.find(candidate => candidate.id === Number(a))
+        const adversaryB = activeCandidates.find(candidate => candidate.id === Number(b))
+
+        return [adversaryA, adversaryB]
+    }
+
+    async function  runBattle(adversaries: [Candidate, Candidate]) {
+        const { learningRate } = useSettings()
+
         const newBattle: Battle = {
-            a: Number(a),
-            b: Number(b),
+            a: adversaries[0].id,
+            b: adversaries[1].id,
             rounds: testCases.value.map(testCase => ({ testCase, result: null, generation: { a: '', b: '' } })),
             winner: null,
         }
@@ -253,11 +263,11 @@ export function useAutoPrompter() {
                 let score: 1 | 0 | 0.5 = 0.5
                 const aIndex = candidates.value.findIndex(candidate => candidate.id === newBattle.a)!
                 const bIndex = candidates.value.findIndex(candidate => candidate.id === newBattle.b)!
-                const [a, b] = [candidates.value[aIndex], candidates.value[bIndex]]
                 const [posA, posB] = await Promise.all([
-                    getGeneration(a.content, testCase),
-                    getGeneration(b.content, testCase),
+                    getGeneration(adversaries[0].content, testCase),
+                    getGeneration(adversaries[1].content, testCase),
                 ])
+            
 
                 if (!posA || !posB)
                     throw new Error('No generation')
@@ -272,16 +282,16 @@ export function useAutoPrompter() {
                 }
 
                 const [newRatingA, newRatingB] = updateElo(
-                    candidates.value[aIndex].rating,
-                    candidates.value[bIndex].rating,
+                    adversaries[0].rating,
+                    adversaries[1].rating,
                     score,
                 )
 
-                candidates.value[aIndex].rating = newRatingA
-                candidates.value[bIndex].rating = newRatingB
+                adversaries[0].rating = newRatingA
+                adversaries[1].rating = newRatingB
 
-                candidates.value[aIndex].sd = Math.max(candidates.value[aIndex].sd * learningRate.value, 125)
-                candidates.value[bIndex].sd = Math.max(candidates.value[bIndex].sd * learningRate.value, 125)
+                adversaries[0].sd = Math.max(adversaries[0].sd * learningRate.value, 125)
+                adversaries[1].sd = Math.max(adversaries[1].sd * learningRate.value, 125)
 
                 newBattle.rounds[roundIndex].result = score === 1 ? 'a' : score === 0 ? 'b' : 'draw'
                 newBattle.rounds[roundIndex].settledAt = new Date()
@@ -313,25 +323,193 @@ export function useAutoPrompter() {
 
         newBattle.winner = winner
         battles.value.push(newBattle)
+    }
 
-        takeSnapshotOfRatings()
+    // define ammount of battles and prompts in each round
+    function defineBattlesPerRound (numberOfPrompts: number, numberOfBattles: number) {
+        const promptsPerRound: number[] = []
+        const battlesPerRound: number[] = []
+        let sumOfPromptsPerRound = 0
+        let sumOfBattlesPerRound = 0
+
+        // calculate number of prompts that will be alive in each round
+        promptsPerRound[0] = numberOfPrompts
+        for (let i = 1; i < Math.floor(Math.log2(numberOfPrompts)); i++) {
+            promptsPerRound[i] = promptsPerRound[i-1] - Math.ceil(promptsPerRound[i-1]/2)
+        }
+
+        //calculate ammount of prompts-round for wheighing battle distribution
+        for (const p of promptsPerRound){
+            sumOfPromptsPerRound += p
+        }
+        
+        for (let i = 0; i < promptsPerRound.length; i++) {
+        battlesPerRound [i] = Math.floor(promptsPerRound[i]/sumOfPromptsPerRound*numberOfBattles)
+        }
+
+        for (const b of battlesPerRound){
+            sumOfBattlesPerRound += b
+        }
+
+        let remainder = numberOfBattles - sumOfBattlesPerRound
+
+        for (let i = 0; i < remainder; i++){
+            battlesPerRound[i] += 1
+        }
+
+        return battlesPerRound
+    }
+
+    async function generateCandidateVariations (candidate : Candidate){
+        const ai = useAI()
+        const {
+            candidateGenerationModel,
+            candidateGenerationTemperature,
+        } = useSettings()
+        const newPrompt = `You are provided with :
+
+        an original prompt,
+        Inputs 1 through N (I1, I2 ... In),
+        Outputs 1 through n( O1, O2 ... On) of the original prompt and
+        Expected Outputs 1 through n (EO1, EO2 ... EOn)
+        Your objective is to create a Final Prompt, which is a modified version of the Original prompt, that given inputs (Is) will produce Outputs as similar as possible to the shown Expected Outputs (EOs). This means that you are supposed to understand the patterns that are expected as outputs in the given "EOs" for a given "I" such as the following and make a prompt that will output an "O" as similar as possible to the corresponding "EO" in the categories that are relevant.
+        
+        Syntax: Syntax refers to the rules that govern the structure of sentences. AI can use algorithms to analyze the syntactical structure of sentences to understand the relationships between different words and phrases. This can help identify the subject, object, and action in a sentence, as well as other structural elements.
+        Semantics: Semantics is the meaning of words and sentences. AI can analyze a text to understand the meanings of individual words in context. This involves aspects like word sense disambiguation (determining the correct meaning of a word based on context), named entity recognition (identifying people, places, and organizations), and semantic role labeling (identifying what roles different parts of a sentence play in the overall meaning).
+        Sentiment Analysis: This involves determining the sentiment expressed in a text. AI can analyze a text to identify positive, negative, or neutral sentiments, as well as more specific emotions like happiness, sadness, anger, etc.
+        Topic Modeling: This involves determining the main themes or topics in a text. AI can use techniques like Latent Dirichlet Allocation (LDA) to identify common topics across a collection of documents.
+        Co-reference Resolution: This is the task of finding all expressions that refer to the same entity in a text. For example, in the text "John said he would come", "John" and "he" refer to the same entity.
+        Textual Entailment: This involves determining if a statement logically follows from another statement. For example, given the statement "All dogs are animals", the statement "A dog is an animal" is entailed.
+        Discourse Analysis: This involves understanding how different parts of a text relate to each other to form a cohesive whole. This can include understanding the narrative structure of a text, identifying discourse markers, and analyzing how different sentences or paragraphs connect.
+        Pragmatics: This involves understanding how context affects the interpretation of a text. This can involve aspects like understanding sarcasm or indirect speech acts.
+        Stylometry: This involves analyzing the style of a text, including aspects like word choice, sentence length, punctuation use, etc. This can be used for tasks like authorship attribution.
+        Text size: Size of the expected output`
+
+        let promptText = ``
+        let lastBattle : Battle 
+        let found: boolean = false
+        let player : "a" | "b"
+
+        for (let i = battles.value.length - 1; i < 0 || found; i--){
+            if (battles.value[i].a === candidate.id){
+                player = "a"
+                lastBattle = battles.value[i]
+                found = true
+            }
+            if (battles.value[i].b === candidate.id){
+                player = "b"
+                lastBattle = battles.value[i]
+                found = true
+            }
+        }
+
+        for (let i = 0; i <testCases.value.length; i++ ){
+            promptText = promptText + `
+                I${i}: ${testCases.value[i].prompt}
+            
+                EO${i}: ${testCases.value[i].expectedOutput}
+                
+                O${i}:  ${Boolean(found) === true ? lastBattle!.rounds[i].generation[player!] : await getGeneration(candidate.content, testCases.value[i])}
+            `
+        }
+
+        const response = await ai.cursive.query({
+            model: candidateGenerationModel.value,
+            systemMessage: newPrompt,
+            prompt: trim`
+            Original prompt: "${candidate.content}"
+
+            ${promptText}
+            
+            Output only the Final Prompt with no "" or any other text
+            `,
+            temperature: candidateGenerationTemperature.value,
+        })
+
+        return response.choices![0].message!.content!;
+    }
+
+   async function improveWinningCandidates (candidates: Candidate[]){
+        const improvedCandidates : Candidate[] = []
+        const numberOfAditionalCandidates : number = 2
+
+        for (let i = 0; i < candidates.length; i++){
+
+            const variants = await Promise.all(
+                Array.from({length:numberOfAditionalCandidates}).map(async (_, index) => ({
+                    id: candidates[i].id + 1 + index, 
+                    sd: candidates[i].sd, 
+                    rating: candidates[i].rating, 
+                    content: await generateCandidateVariations (candidates[i])
+            }))) as Candidate[]
+
+            variants.push(candidates[i])
+            const battleCombinations : [Candidate, Candidate][] = []
+
+            for (let i = 0; i < variants.length; i++) {
+                for (let j = i + 1; j < variants.length; j++) {
+                    battleCombinations.push([variants[i], variants[j]]);
+                }
+            }
+            
+            for (const combination of battleCombinations){
+                await runBattle(combination)
+            }
+
+            const maxRating = Math.max(...variants.map(variant => variant.rating))
+            improvedCandidates[i] = variants.find(candidate => candidate.rating === maxRating)!
+            improvedCandidates[i].id = candidates[i].id
+        }
+
+        return improvedCandidates
     }
 
     async function runNumberOfBattles(amount: number) {
-        const { simultaneousBattles } = useSettings()
+        const { simultaneousBattles, promptImprovementEnabled } = useSettings()
+        const battlesPerRound = promptImprovementEnabled.value ? defineBattlesPerRound (candidates.value.length, amount):[amount]
+        let remainingCandidates: Candidate[] = [...candidates.value]
         battlesToRun.value = amount
-        for (let i = 0; i < amount; i++) {
-            log(`Battle ${i}`)
-            const amountOfBattles = Math.min(Number(simultaneousBattles.value), battlesToRun.value)
-            const start = Date.now()
-            await Promise.all(Array.from({ length: amountOfBattles }).map(() => runBattle()))
-            log('Battle took', Date.now() - start, 'ms')
-            battlesToRun.value -= amountOfBattles
+        takeSnapshotOfRatings()
+        for (let numberOfBattles of battlesPerRound){
+            let i = 0
+            while (i < numberOfBattles) {
+                const amountOfBattles = Math.min(Number(simultaneousBattles.value), battlesToRun.value)
+                amountOfBattles == 1 ? log(`Running Battle ${i+1}`) :log(`Running from Battle ${i + 1} to Battle ${i + amountOfBattles}`)
+                const start = Date.now()
+                
+                await Promise.all(Array.from({ length: amountOfBattles }).map(async () => {
+                    const adversaries = monteCarloSampler(remainingCandidates)
+                    await runBattle(adversaries as [Candidate, Candidate])
+                    for (let i = 0; i < remainingCandidates.length; i++){
+                        for (let j = 0; j < candidates.value.length; j++){
+                            if (remainingCandidates[i].id === candidates.value[j].id){
+                                candidates.value[j] = remainingCandidates[i]
+                            }
+                        }
+                    }
 
-            if (stopBattle.value && stopBattleController.value) {
-                stopBattle.value = false
-                log('Stopping battle')
-                return
+                    takeSnapshotOfRatings()
+
+                }))
+
+                log('Battle took', Date.now() - start, 'ms')
+                battlesToRun.value -= amountOfBattles
+
+                if (stopBattle.value && stopBattleController.value) {
+                    stopBattle.value = false
+                    log('Stopping battle')
+                    return
+                }
+                i += amountOfBattles
+            }
+
+
+            if (promptImprovementEnabled.value && !(numberOfBattles === battlesPerRound[battlesPerRound.length-1])){
+                remainingCandidates.sort((a, b) => b.rating - a.rating)
+                const losers = remainingCandidates.splice(Math.floor((remainingCandidates.length) / 2 ))
+                remainingCandidates = await improveWinningCandidates(remainingCandidates)
+                candidates.value = [...remainingCandidates, ...losers]
+
             }
         }
     }
