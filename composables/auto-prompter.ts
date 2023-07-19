@@ -1,5 +1,7 @@
 import pLimit from 'p-limit'
 import randomNormal from 'random-normal'
+import { resguard } from 'resguard'
+import { timeout } from '@/utils/timeout'
 import type { Battle, Candidate, RatingIteration, TestCase } from '@/utils/types'
 import { useSyncedState } from '@/utils/synced-state'
 
@@ -246,46 +248,63 @@ export function useAutoPrompter() {
 
         const roundLimit = pLimit(5)
         const settleRounds = newBattle.rounds.map((round, roundIndex) => roundLimit(async () => {
-            const testCase = round.testCase
-            let score: 1 | 0 | 0.5 = 0.5
-            const aIndex = candidates.value.findIndex(candidate => candidate.id === newBattle.a)!
-            const bIndex = candidates.value.findIndex(candidate => candidate.id === newBattle.b)!
-            const [a, b] = [candidates.value[aIndex], candidates.value[bIndex]]
-            const [posA, posB] = await Promise.all([
-                getGeneration(a.content, testCase),
-                getGeneration(b.content, testCase),
-            ])
+            async function executeRound() {
+                const testCase = round.testCase
+                let score: 1 | 0 | 0.5 = 0.5
+                const aIndex = candidates.value.findIndex(candidate => candidate.id === newBattle.a)!
+                const bIndex = candidates.value.findIndex(candidate => candidate.id === newBattle.b)!
+                const [a, b] = [candidates.value[aIndex], candidates.value[bIndex]]
+                const [posA, posB] = await Promise.all([
+                    getGeneration(a.content, testCase),
+                    getGeneration(b.content, testCase),
+                ])
 
-            score = await getScore(testCase, posA, posB)
+                if (!posA || !posB)
+                    throw new Error('No generation')
 
-            if (score === 0.5) {
-                newBattle.rounds[roundIndex].result = 'draw'
+                score = await getScore(testCase, posA, posB)
+
+                if (score === 0.5) {
+                    newBattle.rounds[roundIndex].result = 'draw'
+                    newBattle.rounds[roundIndex].settledAt = new Date()
+                    newBattle.rounds[roundIndex].generation = { a: posA, b: posB }
+                    return newBattle.rounds[roundIndex]
+                }
+
+                const [newRatingA, newRatingB] = updateElo(
+                    candidates.value[aIndex].rating,
+                    candidates.value[bIndex].rating,
+                    score,
+                )
+
+                candidates.value[aIndex].rating = newRatingA
+                candidates.value[bIndex].rating = newRatingB
+
+                candidates.value[aIndex].sd = Math.max(candidates.value[aIndex].sd * learningRate.value, 125)
+                candidates.value[bIndex].sd = Math.max(candidates.value[bIndex].sd * learningRate.value, 125)
+
+                newBattle.rounds[roundIndex].result = score === 1 ? 'a' : score === 0 ? 'b' : 'draw'
                 newBattle.rounds[roundIndex].settledAt = new Date()
                 newBattle.rounds[roundIndex].generation = { a: posA, b: posB }
+
                 return newBattle.rounds[roundIndex]
             }
 
-            const [newRatingA, newRatingB] = updateElo(
-                candidates.value[aIndex].rating,
-                candidates.value[bIndex].rating,
-                score,
-            )
+            for (let i = 0; i < 5; i++) {
+                const result = await timeout(12000, executeRound())
+                if (result)
+                    return result
+            }
 
-            candidates.value[aIndex].rating = newRatingA
-            candidates.value[bIndex].rating = newRatingB
-
-            candidates.value[aIndex].sd = Math.max(candidates.value[aIndex].sd * learningRate.value, 125)
-            candidates.value[bIndex].sd = Math.max(candidates.value[bIndex].sd * learningRate.value, 125)
-
-            newBattle.rounds[roundIndex].result = score === 1 ? 'a' : score === 0 ? 'b' : 'draw'
-            newBattle.rounds[roundIndex].settledAt = new Date()
-            newBattle.rounds[roundIndex].generation = { a: posA, b: posB }
-
-            return newBattle.rounds[roundIndex]
+            throw new Error('Round timed out')
         }))
 
         log('Settling rounds')
-        await Promise.all(settleRounds)
+        const settled = await resguard(Promise.all(settleRounds))
+        if (settled.error) {
+            log('Error settling rounds', settled.error)
+            return
+        }
         log('Rounds settled')
 
         const aScore = newBattle.rounds.filter(round => round.result === 'a').length
@@ -367,10 +386,13 @@ export function useAutoPrompter() {
     }
 
     function removeCandidate(id: number) {
+        log('Removing candidate', id)
         candidates.value = candidates.value.filter(candidate => candidate.id !== id)
         // Remove all battles that include the candidate
+        log('Removing battles that include candidate', id)
         battles.value = battles.value.filter(battle => battle.a !== id && battle.b !== id)
         // Remove candidate from all the ratings history
+        log('Removing candidate from ratings history', id)
         ratingHistory.value = ratingHistory.value.map(rating => ({
             ...rating,
             ratings: rating.ratings.filter(rating => rating.promptId !== id),

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-const { candidates, expectedScore, resetCandidatesRatingAndSD } = useAutoPrompter()
+const { candidates, expectedScore } = useAutoPrompter()
 
 const candidateItemList = computed(() => {
     const sorted = candidates.value
@@ -9,7 +9,7 @@ const candidateItemList = computed(() => {
             rating: c.rating,
             icon: 'i-tabler-3d-cube-sphere',
             isBest: false,
-            id: i,
+            id: c.id,
         }))
         .sort((a, b) => b.rating - a.rating)
         .map((c, i, l) => ({
@@ -38,7 +38,7 @@ const candidateItemList = computed(() => {
     >
         <template #header>
             <div font-bold text-5>
-                Prompt candidates
+                Prompt candidates {{ candidateItemList.length }}
             </div>
         </template>
 
