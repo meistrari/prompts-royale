@@ -298,7 +298,7 @@ export function useAutoPrompter() {
             }
 
             for (let i = 0; i < 5; i++) {
-                const result = await timeout(12000, executeRound())
+                const result = await timeout(20000, executeRound())
                 if (result)
                     return result
             }
@@ -407,11 +407,11 @@ export function useAutoPrompter() {
             promptText = trim`
                 ${promptText}
 
-                I${i}: ${testCases.value[i].prompt}
+                I${String(i)}: ${testCases.value[i].prompt}
             
-                EO${i}: ${testCases.value[i].expectedOutput}
+                EO${String(i)}: ${testCases.value[i].expectedOutput}
                 
-                O${i}:  ${Boolean(found) === true ? lastBattle!.rounds[i].generation[player!] : await getGeneration(candidate.content, testCases.value[i])}
+                O${String(i)}:  ${Boolean(found) === true ? lastBattle!.rounds[i].generation[player!] : await getGeneration(candidate.content, testCases.value[i])}
             `
         }
 
@@ -495,7 +495,7 @@ export function useAutoPrompter() {
                     }
 
                     takeSnapshotOfRatings()
-
+                    console.log('took snappy')
                 }))
 
                 log('Battle took', Date.now() - start, 'ms')
