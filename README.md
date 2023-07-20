@@ -27,14 +27,14 @@ Clone the repository:
 git clone git@github.com:meistrari/prompts-royale.git
 ```
 
-Install the dependencies:
+Install the dependencies. We're using [Bun](https://bun.sh) for managing dependencies, it's awesome.
 ```bash
-npm install
+bun i
 ```
 
 Run the server:
 ```bash
-npm run dev
+bun run dev
 ```
 
 ## Example
