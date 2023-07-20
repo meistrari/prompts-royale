@@ -4,7 +4,6 @@ import { resguard } from 'resguard'
 import { timeout } from '@/utils/timeout'
 import type { Battle, Candidate, RatingIteration, TestCase } from '@/utils/types'
 import { useSyncedState } from '@/utils/synced-state'
-import { matrix } from 'echarts'
 
 export function useAutoPrompter() {
     const log = createLogger('AutoPrompter')
@@ -199,7 +198,7 @@ export function useAutoPrompter() {
         })
     }
 
-    function monteCarloSampler(activeCandidates: Candidate[]){
+    function monteCarloSampler(activeCandidates: Candidate[]) {
         const { sampleAmount } = useSettings()
 
         // Initialize distribution
@@ -246,7 +245,7 @@ export function useAutoPrompter() {
         return [adversaryA, adversaryB]
     }
 
-    async function  runBattle(adversaryA: Candidate, adversaryB: Candidate) {
+    async function runBattle(adversaryA: Candidate, adversaryB: Candidate) {
         const { learningRate } = useSettings()
 
         const newBattle: Battle = {
@@ -283,17 +282,17 @@ export function useAutoPrompter() {
                     adversaryB.rating,
                     score,
                 )
-    
+
                 adversaryA.rating = newRatingA
                 adversaryB.rating = newRatingB
-    
+
                 adversaryA.sd = Math.max(adversaryA.sd * learningRate.value, 125)
                 adversaryB.sd = Math.max(adversaryB.sd * learningRate.value, 125)
-    
+
                 newBattle.rounds[roundIndex].result = score === 1 ? 'a' : score === 0 ? 'b' : 'draw'
                 newBattle.rounds[roundIndex].settledAt = new Date()
                 newBattle.rounds[roundIndex].generation = { a: posA, b: posB }
-    
+
                 return newBattle.rounds[roundIndex]
             }
 
@@ -323,7 +322,7 @@ export function useAutoPrompter() {
     }
 
     // define ammount of battles and prompts in each round
-    function defineBattlesPerBracket (numberOfBattles: number) {
+    function defineBattlesPerBracket(numberOfBattles: number) {
         const promptsPerBracket: number[] = []
         const battlesPerBracket: number[] = []
         let sumOfPromptsPerBracket = 0
@@ -331,36 +330,30 @@ export function useAutoPrompter() {
 
         // calculate number of prompts that will be alive in each round
         promptsPerBracket[0] = candidates.value.length
-	
-	
+
         const bracketAmount = Math.floor(Math.log2(candidates.value.length))
-        for (let i = 1; i < bracketAmount; i++) {
-            promptsPerBracket[i] = promptsPerBracket[i-1] - Math.ceil(promptsPerBracket[i-1]/2)
-        }
+        for (let i = 1; i < bracketAmount; i++)
+            promptsPerBracket[i] = promptsPerBracket[i - 1] - Math.ceil(promptsPerBracket[i - 1] / 2)
 
-        //calculate ammount of prompts-Bracket for wheighing battle distribution
-        for (const prompts of promptsPerBracket){
+        // calculate ammount of prompts-Bracket for wheighing battle distribution
+        for (const prompts of promptsPerBracket)
             sumOfPromptsPerBracket += prompts
-        }
-        
-        for (let i = 0; i < promptsPerBracket.length; i++) {
-        battlesPerBracket [i] = Math.floor(promptsPerBracket[i]/sumOfPromptsPerBracket*numberOfBattles)
-        }
 
-        for (const battles of battlesPerBracket){
+        for (let i = 0; i < promptsPerBracket.length; i++)
+            battlesPerBracket[i] = Math.floor(promptsPerBracket[i] / sumOfPromptsPerBracket * numberOfBattles)
+
+        for (const battles of battlesPerBracket)
             sumOfBattlesPerBracket += battles
-        }
 
-        let remainder = numberOfBattles - sumOfBattlesPerBracket
+        const remainder = numberOfBattles - sumOfBattlesPerBracket
 
-        for (let i = 0; i < remainder; i++){
+        for (let i = 0; i < remainder; i++)
             battlesPerBracket[i] += 1
-        }
 
         return battlesPerBracket
     }
 
-    async function generateCandidateVariations(candidate : Candidate){
+    async function generateCandidateVariations(candidate: Candidate) {
         const ai = useAI()
         const {
             candidateGenerationModel,
@@ -386,24 +379,24 @@ export function useAutoPrompter() {
         - Text size: Size of the expected output`
 
         let promptText = ''
-        let lastBattle: Battle 
-        let found: boolean = false
-        let player: "a" | "b"
+        let lastBattle: Battle
+        let found = false
+        let player: 'a' | 'b'
 
-        for (let i = battles.value.length - 1; i < 0 || found; i--){
-            if (battles.value[i].a === candidate.id){
-                player = "a"
+        for (let i = battles.value.length - 1; i < 0 || found; i--) {
+            if (battles.value[i].a === candidate.id) {
+                player = 'a'
                 lastBattle = battles.value[i]
                 found = true
             }
-            if (battles.value[i].b === candidate.id){
-                player = "b"
+            if (battles.value[i].b === candidate.id) {
+                player = 'b'
                 lastBattle = battles.value[i]
                 found = true
             }
         }
 
-        for (let i = 0; i < testCases.value.length; i++ ){
+        for (let i = 0; i < testCases.value.length; i++) {
             promptText = trim`
                 ${promptText}
 
@@ -431,35 +424,32 @@ export function useAutoPrompter() {
             temperature: candidateGenerationTemperature.value,
         })
 
-        return response.choices![0].message!.content!;
+        return response.choices![0].message!.content!
     }
 
-   async function improveWinningCandidates (candidates: Candidate[]){
-        const improvedCandidates : Candidate[] = []
-        const numberOfAditionalCandidates : number = 2
+    async function improveWinningCandidates(candidates: Candidate[]) {
+        const improvedCandidates: Candidate[] = []
+        const numberOfAditionalCandidates = 2
 
-        for (let i = 0; i < candidates.length; i++){
-
+        for (let i = 0; i < candidates.length; i++) {
             const variants = await Promise.all(
-                Array.from({length:numberOfAditionalCandidates}).map(async (_, index) => ({
-                    id: candidates[i].id + 1 + index, 
-                    sd: candidates[i].sd, 
-                    rating: candidates[i].rating, 
-                    content: await generateCandidateVariations(candidates[i])
-            }))) as Candidate[]
+                Array.from({ length: numberOfAditionalCandidates }).map(async (_, index) => ({
+                    id: candidates[i].id + 1 + index,
+                    sd: candidates[i].sd,
+                    rating: candidates[i].rating,
+                    content: await generateCandidateVariations(candidates[i]),
+                }))) as Candidate[]
 
             variants.push(candidates[i])
             const battleCombinations: [Candidate, Candidate][] = []
 
             for (let i = 0; i < variants.length; i++) {
-                for (let j = i + 1; j < variants.length; j++) {
-                    battleCombinations.push([variants[i], variants[j]]);
-                }
+                for (let j = i + 1; j < variants.length; j++)
+                    battleCombinations.push([variants[i], variants[j]])
             }
-            
-            for (const combination of battleCombinations){
+
+            for (const combination of battleCombinations)
                 await runBattle(combination[0], combination[1])
-            }
 
             const maxRating = Math.max(...variants.map(variant => variant.rating))
             improvedCandidates[i] = variants.find(candidate => candidate.rating === maxRating)!
@@ -471,26 +461,25 @@ export function useAutoPrompter() {
 
     async function runNumberOfBattles(amount: number) {
         const { simultaneousBattles, promptImprovementEnabled } = useSettings()
-        const battlesPerRound = promptImprovementEnabled.value ? defineBattlesPerBracket(amount):[amount]
+        const battlesPerRound = promptImprovementEnabled.value ? defineBattlesPerBracket(amount) : [amount]
         let remainingCandidates: Candidate[] = [...candidates.value]
-        let losers: Candidate[] = []
+        const losers: Candidate[] = []
         battlesToRun.value = amount
         takeSnapshotOfRatings()
-        for (let numberOfBattles of battlesPerRound){
+        for (const numberOfBattles of battlesPerRound) {
             let i = 0
             while (i < numberOfBattles) {
                 const amountOfBattles = Math.min(Number(simultaneousBattles.value), battlesToRun.value)
-                amountOfBattles === 1 ? log(`Running Battle ${i+1}`) : log(`Running from Battle ${i + 1} to Battle ${i + amountOfBattles}`)
+                amountOfBattles === 1 ? log(`Running Battle ${i + 1}`) : log(`Running from Battle ${i + 1} to Battle ${i + amountOfBattles}`)
                 const start = Date.now()
-                
+
                 await Promise.all(Array.from({ length: amountOfBattles }).map(async () => {
                     const adversaries = monteCarloSampler(remainingCandidates)
                     await runBattle(adversaries[0] as Candidate, adversaries[1] as Candidate)
-                    for (let i = 0; i < remainingCandidates.length; i++){
-                        for (let j = 0; j < candidates.value.length; j++){
-                            if (remainingCandidates[i].id === candidates.value[j].id){
+                    for (let i = 0; i < remainingCandidates.length; i++) {
+                        for (let j = 0; j < candidates.value.length; j++) {
+                            if (remainingCandidates[i].id === candidates.value[j].id)
                                 candidates.value[j] = remainingCandidates[i]
-                            }
                         }
                     }
 
@@ -509,10 +498,9 @@ export function useAutoPrompter() {
                 i += amountOfBattles
             }
 
-
-            if (promptImprovementEnabled.value && !(numberOfBattles === battlesPerRound[battlesPerRound.length-1])){
+            if (promptImprovementEnabled.value && !(numberOfBattles === battlesPerRound[battlesPerRound.length - 1])) {
                 remainingCandidates.sort((a, b) => b.rating - a.rating)
-                losers.push(...remainingCandidates.splice(Math.floor((remainingCandidates.length) / 2 )))
+                losers.push(...remainingCandidates.splice(Math.floor((remainingCandidates.length) / 2)))
                 remainingCandidates = await improveWinningCandidates(remainingCandidates)
                 candidates.value = [...remainingCandidates, ...losers]
             }
