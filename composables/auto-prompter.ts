@@ -246,12 +246,12 @@ export function useAutoPrompter() {
         return [adversaryA, adversaryB]
     }
 
-    async function  runBattle(adversaries: [Candidate, Candidate]) {
+    async function  runBattle(adversaryA: Candidate, adversaryB: Candidate) {
         const { learningRate } = useSettings()
 
         const newBattle: Battle = {
-            a: adversaries[0].id,
-            b: adversaries[1].id,
+            a: adversaryA.id,
+            b: adversaryB.id,
             rounds: testCases.value.map(testCase => ({ testCase, result: null, generation: { a: '', b: '' } })),
             winner: null,
         }
@@ -261,13 +261,10 @@ export function useAutoPrompter() {
             async function executeRound() {
                 const testCase = round.testCase
                 let score: 1 | 0 | 0.5 = 0.5
-                const aIndex = candidates.value.findIndex(candidate => candidate.id === newBattle.a)!
-                const bIndex = candidates.value.findIndex(candidate => candidate.id === newBattle.b)!
                 const [posA, posB] = await Promise.all([
-                    getGeneration(adversaries[0].content, testCase),
-                    getGeneration(adversaries[1].content, testCase),
+                    getGeneration(adversaryA.content, testCase),
+                    getGeneration(adversaryB.content, testCase),
                 ])
-            
 
                 if (!posA || !posB)
                     throw new Error('No generation')
@@ -282,21 +279,21 @@ export function useAutoPrompter() {
                 }
 
                 const [newRatingA, newRatingB] = updateElo(
-                    adversaries[0].rating,
-                    adversaries[1].rating,
+                    adversaryA.rating,
+                    adversaryB.rating,
                     score,
                 )
-
-                adversaries[0].rating = newRatingA
-                adversaries[1].rating = newRatingB
-
-                adversaries[0].sd = Math.max(adversaries[0].sd * learningRate.value, 125)
-                adversaries[1].sd = Math.max(adversaries[1].sd * learningRate.value, 125)
-
+    
+                adversaryA.rating = newRatingA
+                adversaryB.rating = newRatingB
+    
+                adversaryA.sd = Math.max(adversaryA.sd * learningRate.value, 125)
+                adversaryB.sd = Math.max(adversaryB.sd * learningRate.value, 125)
+    
                 newBattle.rounds[roundIndex].result = score === 1 ? 'a' : score === 0 ? 'b' : 'draw'
                 newBattle.rounds[roundIndex].settledAt = new Date()
                 newBattle.rounds[roundIndex].generation = { a: posA, b: posB }
-
+    
                 return newBattle.rounds[roundIndex]
             }
 
@@ -326,69 +323,72 @@ export function useAutoPrompter() {
     }
 
     // define ammount of battles and prompts in each round
-    function defineBattlesPerRound (numberOfPrompts: number, numberOfBattles: number) {
-        const promptsPerRound: number[] = []
-        const battlesPerRound: number[] = []
-        let sumOfPromptsPerRound = 0
-        let sumOfBattlesPerRound = 0
+    function defineBattlesPerBracket (numberOfBattles: number) {
+        const promptsPerBracket: number[] = []
+        const battlesPerBracket: number[] = []
+        let sumOfPromptsPerBracket = 0
+        let sumOfBattlesPerBracket = 0
 
         // calculate number of prompts that will be alive in each round
-        promptsPerRound[0] = numberOfPrompts
-        for (let i = 1; i < Math.floor(Math.log2(numberOfPrompts)); i++) {
-            promptsPerRound[i] = promptsPerRound[i-1] - Math.ceil(promptsPerRound[i-1]/2)
+        promptsPerBracket[0] = candidates.value.length
+	
+	
+        const bracketAmount = Math.floor(Math.log2(candidates.value.length))
+        for (let i = 1; i < bracketAmount; i++) {
+            promptsPerBracket[i] = promptsPerBracket[i-1] - Math.ceil(promptsPerBracket[i-1]/2)
         }
 
-        //calculate ammount of prompts-round for wheighing battle distribution
-        for (const p of promptsPerRound){
-            sumOfPromptsPerRound += p
+        //calculate ammount of prompts-Bracket for wheighing battle distribution
+        for (const prompts of promptsPerBracket){
+            sumOfPromptsPerBracket += prompts
         }
         
-        for (let i = 0; i < promptsPerRound.length; i++) {
-        battlesPerRound [i] = Math.floor(promptsPerRound[i]/sumOfPromptsPerRound*numberOfBattles)
+        for (let i = 0; i < promptsPerBracket.length; i++) {
+        battlesPerBracket [i] = Math.floor(promptsPerBracket[i]/sumOfPromptsPerBracket*numberOfBattles)
         }
 
-        for (const b of battlesPerRound){
-            sumOfBattlesPerRound += b
+        for (const battles of battlesPerBracket){
+            sumOfBattlesPerBracket += battles
         }
 
-        let remainder = numberOfBattles - sumOfBattlesPerRound
+        let remainder = numberOfBattles - sumOfBattlesPerBracket
 
         for (let i = 0; i < remainder; i++){
-            battlesPerRound[i] += 1
+            battlesPerBracket[i] += 1
         }
 
-        return battlesPerRound
+        return battlesPerBracket
     }
 
-    async function generateCandidateVariations (candidate : Candidate){
+    async function generateCandidateVariations(candidate : Candidate){
         const ai = useAI()
         const {
             candidateGenerationModel,
             candidateGenerationTemperature,
         } = useSettings()
-        const newPrompt = `You are provided with :
+        const newPrompt = trim`You are provided with :
 
         an original prompt,
         Inputs 1 through N (I1, I2 ... In),
         Outputs 1 through n( O1, O2 ... On) of the original prompt and
         Expected Outputs 1 through n (EO1, EO2 ... EOn)
-        Your objective is to create a Final Prompt, which is a modified version of the Original prompt, that given inputs (Is) will produce Outputs as similar as possible to the shown Expected Outputs (EOs). This means that you are supposed to understand the patterns that are expected as outputs in the given "EOs" for a given "I" such as the following and make a prompt that will output an "O" as similar as possible to the corresponding "EO" in the categories that are relevant.
-        
-        Syntax: Syntax refers to the rules that govern the structure of sentences. AI can use algorithms to analyze the syntactical structure of sentences to understand the relationships between different words and phrases. This can help identify the subject, object, and action in a sentence, as well as other structural elements.
-        Semantics: Semantics is the meaning of words and sentences. AI can analyze a text to understand the meanings of individual words in context. This involves aspects like word sense disambiguation (determining the correct meaning of a word based on context), named entity recognition (identifying people, places, and organizations), and semantic role labeling (identifying what roles different parts of a sentence play in the overall meaning).
-        Sentiment Analysis: This involves determining the sentiment expressed in a text. AI can analyze a text to identify positive, negative, or neutral sentiments, as well as more specific emotions like happiness, sadness, anger, etc.
-        Topic Modeling: This involves determining the main themes or topics in a text. AI can use techniques like Latent Dirichlet Allocation (LDA) to identify common topics across a collection of documents.
-        Co-reference Resolution: This is the task of finding all expressions that refer to the same entity in a text. For example, in the text "John said he would come", "John" and "he" refer to the same entity.
-        Textual Entailment: This involves determining if a statement logically follows from another statement. For example, given the statement "All dogs are animals", the statement "A dog is an animal" is entailed.
-        Discourse Analysis: This involves understanding how different parts of a text relate to each other to form a cohesive whole. This can include understanding the narrative structure of a text, identifying discourse markers, and analyzing how different sentences or paragraphs connect.
-        Pragmatics: This involves understanding how context affects the interpretation of a text. This can involve aspects like understanding sarcasm or indirect speech acts.
-        Stylometry: This involves analyzing the style of a text, including aspects like word choice, sentence length, punctuation use, etc. This can be used for tasks like authorship attribution.
-        Text size: Size of the expected output`
+        Your objective is to create a Final Prompt, which is a modified version of the Original prompt, that given inputs (Is) will produce Outputs as similar as possible to the shown Expected Outputs (EOs). YOUR PROMPT SHOULD BE GENERIC AND NOT OVERFIT THESE EXAMPLES. YOU CAN USE THESE EXAMPLES (IS) TO UNDERSTAND THE KIND OF QUESTIONS THAT WILL BE ASKED BUT YOU CANNOT UNDER ANY CIRCUMSTANCES USE THEM IN THE FINAL PROMPT. This means that you are supposed to understand the patterns that are expected as outputs in the given "EOs" for a given "I" such as the following and make a prompt that will output an "O" as similar as possible to the corresponding "EO" in the categories that are relevant.
+        some examples of what you want to consider:
+        - Syntax: Syntax refers to the rules that govern the structure of sentences. AI can use algorithms to analyze the syntactical structure of sentences to understand the relationships between different words and phrases. This can help identify the subject, object, and action in a sentence, as well as other structural elements.
+        - Semantics: Semantics is the meaning of words and sentences. AI can analyze a text to understand the meanings of individual words in context. This involves aspects like word sense disambiguation (determining the correct meaning of a word based on context), named entity recognition (identifying people, places, and organizations), and semantic role labeling (identifying what roles different parts of a sentence play in the overall meaning).
+        - Sentiment Analysis: This involves determining the sentiment expressed in a text. AI can analyze a text to identify positive, negative, or neutral sentiments, as well as more specific emotions like happiness, sadness, anger, etc.
+        - Topic Modeling: This involves determining the main themes or topics in a text. AI can use techniques like Latent Dirichlet Allocation (LDA) to identify common topics across a collection of documents.
+        - Co-reference Resolution: This is the task of finding all expressions that refer to the same entity in a text. For example, in the text "John said he would come", "John" and "he" refer to the same entity.
+        - Textual Entailment: This involves determining if a statement logically follows from another statement. For example, given the statement "All dogs are animals", the statement "A dog is an animal" is entailed.
+        - Discourse Analysis: This involves understanding how different parts of a text relate to each other to form a cohesive whole. This can include understanding the narrative structure of a text, identifying discourse markers, and analyzing how different sentences or paragraphs connect.
+        - Pragmatics: This involves understanding how context affects the interpretation of a text. This can involve aspects like understanding sarcasm or indirect speech acts.
+        - Stylometry: This involves analyzing the style of a text, including aspects like word choice, sentence length, punctuation use, etc. This can be used for tasks like authorship attribution.
+        - Text size: Size of the expected output`
 
-        let promptText = ``
-        let lastBattle : Battle 
+        let promptText = ''
+        let lastBattle: Battle 
         let found: boolean = false
-        let player : "a" | "b"
+        let player: "a" | "b"
 
         for (let i = battles.value.length - 1; i < 0 || found; i--){
             if (battles.value[i].a === candidate.id){
@@ -403,8 +403,10 @@ export function useAutoPrompter() {
             }
         }
 
-        for (let i = 0; i <testCases.value.length; i++ ){
-            promptText = promptText + `
+        for (let i = 0; i < testCases.value.length; i++ ){
+            promptText = trim`
+                ${promptText}
+
                 I${i}: ${testCases.value[i].prompt}
             
                 EO${i}: ${testCases.value[i].expectedOutput}
@@ -421,7 +423,10 @@ export function useAutoPrompter() {
 
             ${promptText}
             
-            Output only the Final Prompt with no "" or any other text
+            Output only the Final Prompt with no "" or any other text. Respond with your prompt, and nothing else. Be creative.
+            NEVER CHEAT BY INCLUDING SPECIFICS ABOUT THE TEST CASES (or in this case the inputs) IN YOUR PROMPT. 
+            ANY PROMPTS WITH THOSE SPECIFIC EXAMPLES WILL BE DISQUALIFIED.
+            IF YOU USE EXAMPLES, ALWAYS USE ONES THAT ARE VERY DIFFERENT FROM THE TEST CASES.
             `,
             temperature: candidateGenerationTemperature.value,
         })
@@ -440,11 +445,11 @@ export function useAutoPrompter() {
                     id: candidates[i].id + 1 + index, 
                     sd: candidates[i].sd, 
                     rating: candidates[i].rating, 
-                    content: await generateCandidateVariations (candidates[i])
+                    content: await generateCandidateVariations(candidates[i])
             }))) as Candidate[]
 
             variants.push(candidates[i])
-            const battleCombinations : [Candidate, Candidate][] = []
+            const battleCombinations: [Candidate, Candidate][] = []
 
             for (let i = 0; i < variants.length; i++) {
                 for (let j = i + 1; j < variants.length; j++) {
@@ -453,7 +458,7 @@ export function useAutoPrompter() {
             }
             
             for (const combination of battleCombinations){
-                await runBattle(combination)
+                await runBattle(combination[0], combination[1])
             }
 
             const maxRating = Math.max(...variants.map(variant => variant.rating))
@@ -466,20 +471,21 @@ export function useAutoPrompter() {
 
     async function runNumberOfBattles(amount: number) {
         const { simultaneousBattles, promptImprovementEnabled } = useSettings()
-        const battlesPerRound = promptImprovementEnabled.value ? defineBattlesPerRound (candidates.value.length, amount):[amount]
+        const battlesPerRound = promptImprovementEnabled.value ? defineBattlesPerBracket(amount):[amount]
         let remainingCandidates: Candidate[] = [...candidates.value]
+        let losers: Candidate[] = []
         battlesToRun.value = amount
         takeSnapshotOfRatings()
         for (let numberOfBattles of battlesPerRound){
             let i = 0
             while (i < numberOfBattles) {
                 const amountOfBattles = Math.min(Number(simultaneousBattles.value), battlesToRun.value)
-                amountOfBattles == 1 ? log(`Running Battle ${i+1}`) :log(`Running from Battle ${i + 1} to Battle ${i + amountOfBattles}`)
+                amountOfBattles === 1 ? log(`Running Battle ${i+1}`) : log(`Running from Battle ${i + 1} to Battle ${i + amountOfBattles}`)
                 const start = Date.now()
                 
                 await Promise.all(Array.from({ length: amountOfBattles }).map(async () => {
                     const adversaries = monteCarloSampler(remainingCandidates)
-                    await runBattle(adversaries as [Candidate, Candidate])
+                    await runBattle(adversaries[0] as Candidate, adversaries[1] as Candidate)
                     for (let i = 0; i < remainingCandidates.length; i++){
                         for (let j = 0; j < candidates.value.length; j++){
                             if (remainingCandidates[i].id === candidates.value[j].id){
@@ -506,10 +512,9 @@ export function useAutoPrompter() {
 
             if (promptImprovementEnabled.value && !(numberOfBattles === battlesPerRound[battlesPerRound.length-1])){
                 remainingCandidates.sort((a, b) => b.rating - a.rating)
-                const losers = remainingCandidates.splice(Math.floor((remainingCandidates.length) / 2 ))
+                losers.push(...remainingCandidates.splice(Math.floor((remainingCandidates.length) / 2 )))
                 remainingCandidates = await improveWinningCandidates(remainingCandidates)
                 candidates.value = [...remainingCandidates, ...losers]
-
             }
         }
     }
