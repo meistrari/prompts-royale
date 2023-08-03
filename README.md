@@ -22,6 +22,9 @@ https://github.com/meistrari/prompts-royale/assets/8951736/efd6e6f6-c470-473a-bc
 ## Usage
 You can use it at [promptsroyale.com](https://promptsroyale.com/), or you can clone the repository and run it locally.
 
+Requirements:
+- [Node](https://nodejs.org/en) v16+
+
 Clone the repository:
 ```bash
 git clone git@github.com:meistrari/prompts-royale.git
