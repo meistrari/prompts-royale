@@ -20,10 +20,10 @@ const battleItemList = computed(() => battles.value
             <template #header>
                 <div flex items-center>
                     <div font-bold text-5>
-                        Battle log
+                        Logs
                     </div>
                     <UButton ms-auto icon="i-tabler-trash text-red" color="white" @click="clearBattles">
-                        Clear battles
+                        Clear battles and ratings
                     </UButton>
                 </div>
             </template>

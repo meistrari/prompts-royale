@@ -9,6 +9,7 @@ const {
     startingSD,
     learningRate,
     sampleAmount,
+    promptImprovementEnabled,
     completionGenerationModel,
     completionGenerationTemperature,
     rankingModel,
@@ -119,6 +120,23 @@ const isGenerateCandidatesPromptModalOpen = ref(false)
                     <USkeleton w-full h-10 my-2 />
                 </template>
             </ClientOnly>
+        </UFormGroup>
+        <UFormGroup
+        label="Auto improve prompts"
+            description="Every time a set number of battles happen, the top 50% prompts will be improved with a better version of themselves. The bottom 50% prompts will be removed. This process continues until one prompt is left."
+            text-4.5 mt-3
+        >
+            <ClientOnly>
+                <UCheckbox
+                    v-model="promptImprovementEnabled"
+                    name ="promptImprovement"
+                    label ="Enabled"
+                />
+                <template #placeholder>
+                    <USkeleton w-full h-10 my-2 />
+                </template>
+            </ClientOnly>
+
         </UFormGroup>
         <UFormGroup
             label="Completion prompt generation model"

@@ -11,6 +11,8 @@ export function useSettings() {
     const candidateGenerationModel = useSyncedState<string>('candidateGenerationModel', 'gpt-4')
     const candidateGenerationTemperature = useSyncedState<number>('candidateGenerationTemperature', 0.9)
 
+    const promptImprovementEnabled = useSyncedState<boolean>('promptImprovementEnabled', true)
+
     const rankingPrompt = useSyncedState<string>('rankingPrompt', defaultRankingPrompt)
 
     const completionGenerationModel = useSyncedState<string>('completionGenerationModel', 'gpt-3.5-turbo')
@@ -42,5 +44,6 @@ export function useSettings() {
         completionGenerationTemperature,
         rankingModel,
         testCaseGenerationPrompt,
+        promptImprovementEnabled,
     }
 }

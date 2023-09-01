@@ -38,7 +38,7 @@ const candidateItemList = computed(() => {
     >
         <template #header>
             <div font-bold text-5>
-                Prompt candidates {{ candidateItemList.length }}
+                Prompt candidates
             </div>
         </template>
 

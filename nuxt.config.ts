@@ -14,6 +14,6 @@ export default defineNuxtConfig({
         preference: 'light',
     },
     build: {
-        transpile: ['vue-sonner'],
+        transpile: ['vue-sonner', '@web-std/stream'],
     },
 })
