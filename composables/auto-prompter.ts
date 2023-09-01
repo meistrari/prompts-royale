@@ -39,7 +39,7 @@ export function useAutoPrompter() {
         // Than varying using different system messages in a round-robin fashion
         const promptsGenerated = Array.from({ length: amount }).map((_, i) => promptGenerationLimit(async () => {
             const currentPrompt = candidateGenerationPrompts.value[i % candidateGenerationPrompts.value.length]
-            const response = await ai.cursive.query({
+            const response = await ai.cursive.ask({
                 model: candidateGenerationModel.value,
                 systemMessage: currentPrompt,
                 prompt: trim`
@@ -71,7 +71,7 @@ export function useAutoPrompter() {
                 return ''
             }
 
-            const prompt = response.choices![0].message!.content!
+            const prompt = response.answer
             return prompt
         }))
 
@@ -97,7 +97,7 @@ export function useAutoPrompter() {
         const ai = useAI()
         const { testCaseGenerationPrompt } = useSettings()
         isGeneratingTestCases.value = true
-        const response = await ai.cursive.query({
+        const response = await ai.cursive.ask({
             model: 'gpt-4',
             systemMessage: testCaseGenerationPrompt.value,
             prompt: `Task: ${description.value.trim()}`,
@@ -111,7 +111,7 @@ export function useAutoPrompter() {
         }
 
         const newTestCases = response.choices!.map(choice => ({
-            prompt: choice.message!.content!,
+            prompt: choice,
             expectedOutput: '',
             id: randomId(),
         }))
@@ -125,7 +125,7 @@ export function useAutoPrompter() {
         if (!testCase.expectedOutput.trim()) {
             const ai = useAI()
             const { rankingPrompt } = useSettings()
-            const result = await ai.cursive.query({
+            const result = await ai.cursive.ask({
                 systemMessage: rankingPrompt.value,
                 prompt: trim`
                     Task: ${description.value.trim()}
@@ -142,7 +142,7 @@ export function useAutoPrompter() {
                 abortSignal: stopBattleController.value?.signal,
                 model: 'gpt-4',
             })
-            const winner = result.choices?.[0].message?.content
+            const winner = result.answer
             return winner === 'A' ? 1 : winner === 'B' ? 0 : 0.5
         }
         else {
@@ -166,7 +166,7 @@ export function useAutoPrompter() {
     async function getGeneration(prompt: string, testCase: TestCase, options?: { temperature?: number; model?: string }) {
         const ai = useAI()
         const { completionGenerationModel, completionGenerationTemperature } = useSettings()
-        const result = await ai.cursive.query({
+        const result = await ai.cursive.ask({
             model: completionGenerationModel.value,
             systemMessage: prompt,
             prompt: testCase.prompt,
@@ -176,7 +176,7 @@ export function useAutoPrompter() {
         })
 
         if (result.choices)
-            return result.choices![0].message!.content!
+            return result.answer
 
         return ''
     }
@@ -408,7 +408,7 @@ export function useAutoPrompter() {
             `
         }
 
-        const response = await ai.cursive.query({
+        const response = await ai.cursive.ask({
             model: candidateGenerationModel.value,
             systemMessage: newPrompt,
             prompt: trim`
@@ -424,7 +424,7 @@ export function useAutoPrompter() {
             temperature: candidateGenerationTemperature.value,
         })
 
-        return response.choices![0].message!.content!
+        return response.answer
     }
 
     async function improveWinningCandidates(candidates: Candidate[]) {
@@ -484,7 +484,6 @@ export function useAutoPrompter() {
                     }
 
                     takeSnapshotOfRatings()
-                    console.log('took snappy')
                 }))
 
                 log('Battle took', Date.now() - start, 'ms')
